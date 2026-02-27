@@ -1,3 +1,11 @@
+using RootCauseAI.Data;
+using RootCauseAI.Engine;
+using RootCauseAI.Models;
+using Microsoft.AspNetCore.Mvc;
+using RootCauseAI.Engine;
+using RootCauseAI.Models;
+using RootCauseAI.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -15,6 +23,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+builder.Services.AddSingleton<DiagnosticEngine>();
+
+app.MapPost("/analyze", (Ticket ticket, DiagnosticEngine engine) =>
+{
+    var result = engine.Analyze(ticket);
+    TicketStore.Add(result);
+    return Results.Ok(result);
+});
+
+app.MapGet("/tickets", () => TicketStore.GetAll());
 
 app.UseHttpsRedirection();
 
