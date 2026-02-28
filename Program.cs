@@ -25,14 +25,23 @@ if (app.Environment.IsDevelopment())
 }
 builder.Services.AddSingleton<DiagnosticEngine>();
 
-app.MapPost("/analyze", (Ticket ticket, DiagnosticEngine engine) =>
+app.MapPost("/analyze/{tenantId}",
+async (string tenantId, Ticket ticket, DiagnosticEngine engine) =>
 {
+    ticket.TenantId = tenantId;
+
     var result = engine.Analyze(ticket);
+
     TicketStore.Add(result);
+
     return Results.Ok(result);
 });
 
-app.MapGet("/tickets", () => TicketStore.GetAll());
+app.MapGet("/tickets/{tenantId}",
+(string tenantId) =>
+{
+    return TicketStore.GetByTenant(tenantId);
+});
 
 app.UseHttpsRedirection();
 

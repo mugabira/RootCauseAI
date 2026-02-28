@@ -1,35 +1,36 @@
 ﻿using RootCauseAI.Models;
+using RootCauseAI.Engine.ML;
 
 namespace RootCauseAI.Engine
 {
     public class DiagnosticEngine
     {
-        public Ticket Analyze(Ticket ticket)
-        {
-            // Simple rule-based classification
-            if (ticket.CustomerDescription.Contains("missing", StringComparison.OrdinalIgnoreCase))
-            {
-                ticket.PredictedLayer = PipelineLayer.Storage;
-                ticket.SuggestedAction = "Check database for missing partitions or failed writes.";
-            }
-            else if (ticket.CustomerDescription.Contains("slow", StringComparison.OrdinalIgnoreCase) ||
-                     ticket.CustomerDescription.Contains("lag", StringComparison.OrdinalIgnoreCase))
-            {
-                ticket.PredictedLayer = PipelineLayer.Processing;
-                ticket.SuggestedAction = "Check ETL jobs and batch processing queues.";
-            }
-            else if (ticket.CustomerDescription.Contains("dashboard", StringComparison.OrdinalIgnoreCase) ||
-                     ticket.CustomerDescription.Contains("visual", StringComparison.OrdinalIgnoreCase))
-            {
-                ticket.PredictedLayer = PipelineLayer.Visualization;
-                ticket.SuggestedAction = "Check dashboard configuration and query outputs.";
-            }
-            else
-            {
-                ticket.PredictedLayer = PipelineLayer.Query;
-                ticket.SuggestedAction = "Run query diagnostics and check stored procedure results.";
-            }
+        private readonly LayerPredictionModel _mlModel;
 
+        public DiagnosticEngine()
+        {
+            _mlModel = new LayerPredictionModel();
+            _mlModel.Train("training-data.csv");
+        }
+
+        public async Task<Ticket> AnalyzeAsync(Ticket ticket)
+        {
+            var (layer, confidence) =
+                _mlModel.Predict(ticket.Logs ?? ticket.CustomerDescription);
+
+            ticket.PredictedLayer = layer;
+            ticket.Confidence = confidence;
+
+            ticket.SuggestedAction = layer switch
+            {
+                PipelineLayer.Storage => "Check DB partitions and write failures.",
+                PipelineLayer.Processing => "Inspect ETL job history.",
+                PipelineLayer.Transport => "Check queues and brokers.",
+                PipelineLayer.Visualization => "Validate dashboard queries.",
+                _ => "Run general diagnostics."
+            };
+
+            await Task.CompletedTask;
             return ticket;
         }
     }
